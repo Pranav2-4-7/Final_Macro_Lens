@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script',
       includeAssets: ['vite.svg'],
       manifest: {
         name: 'MacroLens Calorie Tracker',
