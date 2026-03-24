@@ -41,13 +41,18 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "your_api_key") {
 
 // Initialize Firebase with safety check
 let app;
+const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId'];
+const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
+
 try {
-    if (!firebaseConfig.apiKey) throw new Error("Missing Firebase API Key");
+    if (missingFields.length > 0) {
+        throw new Error(`Missing required Firebase fields: ${missingFields.join(', ')}. Please add them to your Vercel Environment Variables.`);
+    }
     app = initializeApp(firebaseConfig);
-} catch (e) {
-    console.error("🔥 CRITICAL: Failed to initialize Firebase. App will not function properly without environment variables.", e);
-    // Initialize a dummy app to prevent crash (this handles white screen but app will be broken)
-    app = { delete: () => Promise.resolve() } as any; 
+} catch (e: any) {
+    console.error("🔥 CRITICAL: Firebase initialization failed.", e.message);
+    // Initialize a dummy app to prevent the entire app from failing to load
+    app = { delete: () => Promise.resolve(), options: {}, name: "[DEFAULT]" } as any; 
 }
 
 export const auth = getAuth(app);
