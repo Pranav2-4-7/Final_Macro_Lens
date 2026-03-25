@@ -21,7 +21,18 @@ const Login = () => {
             });
         } catch (error: any) {
             console.error("Firebase Login Error:", error);
-            setLoginError(error.message || "An unexpected error occurred during login.");
+            let errorMessage = error.message || "An unexpected error occurred during login.";
+            
+            // Catch domain authorization errors
+            if (error.code === 'auth/unauthorized-domain') {
+                errorMessage = "This domain is not authorized in Firebase Console. Add your Vercel URL to Authentication > Settings > Authorized Domains.";
+            } else if (error.code === 'auth/popup-closed-by-user') {
+                errorMessage = "Login popup was closed before completion. Please try again.";
+            } else if (error.code === 'auth/cancelled-via-rpc-delay') {
+                errorMessage = "Login timed out. Check your network or Firebase configuration.";
+            }
+            
+            setLoginError(`${errorMessage} (Code: ${error.code || 'unknown'})`);
         } finally {
             setIsAuthenticating(false);
         }

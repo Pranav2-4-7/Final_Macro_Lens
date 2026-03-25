@@ -44,11 +44,21 @@ let app;
 const requiredFields = ['apiKey', 'authDomain', 'projectId', 'appId'];
 const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
 
+// Check for VITE_ prefix issues (common on Vercel)
+const rawEnv = import.meta.env;
+const hasPrefixIssue = Object.keys(rawEnv).some(key => key.includes('FIREBASE') && !key.startsWith('VITE_'));
+if (hasPrefixIssue) {
+    console.warn("⚠️ WARNING: Detected Firebase environment variables without 'VITE_' prefix. These will not be available in the client build.");
+}
+
 try {
     if (missingFields.length > 0) {
-        throw new Error(`Missing required Firebase fields: ${missingFields.join(', ')}. Please add them to your Vercel Environment Variables.`);
+        const errorMsg = `Missing required Firebase fields: ${missingFields.join(', ')}. Please check your Vercel Environment Variables and ensure they are prefixed with 'VITE_'.`;
+        console.error("🔥 Firebase Config Error:", errorMsg);
+        throw new Error(errorMsg);
     }
     app = initializeApp(firebaseConfig);
+    console.log("✅ Firebase initialized successfully.");
 } catch (e: any) {
     console.error("🔥 CRITICAL: Firebase initialization failed.", e.message);
     // Initialize a dummy app to prevent the entire app from failing to load

@@ -177,8 +177,12 @@ export const useTrackerStore = create<TrackerState>()(
                 if (!uid || uid === 'demo-uid') return;
                 try {
                     await setDoc(doc(db, 'users', uid), data, { merge: true });
-                } catch (error) {
-                    console.error("Error saving to Firestore:", error);
+                    console.log("☁️ Successfully synced to Firestore for user:", uid);
+                } catch (error: any) {
+                    console.error("❌ Error saving to Firestore:", error.message, error.code);
+                    if (error.code === 'permission-denied') {
+                        console.error("👉 Check your Firestore Security Rules!");
+                    }
                 }
             },
 
