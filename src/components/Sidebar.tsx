@@ -1,5 +1,6 @@
-import { LayoutDashboard, Camera, LineChart, Target, Settings, LogOut, Footprints, User as UserIcon, X } from 'lucide-react';
+import { LayoutDashboard, Camera, LineChart, Target, Settings, LogOut, Footprints, User as UserIcon, X, Download } from 'lucide-react';
 import { useTrackerStore } from '../store/useTrackerStore';
+import { usePWA } from '../hooks/usePWA';
 import { motion } from 'framer-motion';
 
 interface SidebarProps {
@@ -11,6 +12,7 @@ interface SidebarProps {
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => {
     const { user, logout } = useTrackerStore();
+    const { isInstallable, isInstalled, installApp } = usePWA();
 
     const menuItems = [
         { id: 'dashboard', icon: LayoutDashboard, label: 'Today' },
@@ -114,6 +116,25 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => 
                         <LogOut size={20} />
                         <span className="nav-label">Logout</span>
                     </button>
+
+                    {isInstallable && !isInstalled && (
+                        <button
+                            onClick={installApp}
+                            style={{ 
+                                marginTop: '12px',
+                                background: 'var(--accent-calories)', 
+                                color: 'white', 
+                                border: 'none', 
+                                borderRadius: '16px',
+                                padding: '12px 16px',
+                                justifyContent: 'flex-start',
+                                fontWeight: '600'
+                            }}
+                        >
+                            <Download size={20} />
+                            <span className="nav-label">Install App</span>
+                        </button>
+                    )}
                 </div>
             </motion.aside>
         </>
