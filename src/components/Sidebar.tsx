@@ -12,7 +12,7 @@ interface SidebarProps {
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => {
     const { user, logout } = useTrackerStore();
-    const { isInstallable, isInstalled, installApp } = usePWA();
+    const { installApp } = usePWA();
 
     const menuItems = [
         { id: 'dashboard', icon: LayoutDashboard, label: 'Today' },
