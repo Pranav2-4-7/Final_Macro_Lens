@@ -9,6 +9,7 @@ import WeightTracker from './components/WeightTracker';
 import ActivityTracker from './components/ActivityTracker';
 import Goals from './components/Goals';
 import Login from './components/Login';
+import InstallPrompt from './components/InstallPrompt';
 import { auth } from './services/firebase';
 import { useTrackerStore } from './store/useTrackerStore';
 import './App.css';
@@ -103,6 +104,7 @@ function App() {
       <main className="main-content">
         {renderContent()}
       </main>
+      <InstallPrompt />
     </div>
   );
 }
