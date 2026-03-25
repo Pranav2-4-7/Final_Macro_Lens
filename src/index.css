@@ -1,27 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  --bg-primary: #f8fafc;
+  --bg-primary: #ffffff;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
+  --bg-tertiary: #f8fafc;
 
   --accent-protein: #f43f5e;
-  /* Rose 500 */
   --accent-carbs: #f59e0b;
-  /* Amber 500 */
   --accent-fat: #3b82f6;
-  /* Blue 500 */
-  --accent-calories: #0f172a;
-  /* Slate 900 */
+  --accent-calories: #1e293b;
 
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --text-main: #18181b;
+  --text-muted: #71717a;
+  --text-light: #a1a1aa;
 
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  --card-border: rgba(0, 0, 0, 0.04);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --card-border: #f4f4f5;
 
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: 'Inter', 'Outfit', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -33,14 +29,15 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   min-height: 100vh;
-  min-height: 100svh; /* More reliable on mobile */
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  min-height: 100svh;
+  background: var(--bg-primary);
   overflow-x: hidden;
-  overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile browsers */
+  overscroll-behavior-y: none;
 }
 
 .glass-card {
@@ -207,57 +204,51 @@ button:active {
   pointer-events: auto;
 }
 
-.mobile-header {
+.bottom-nav {
   display: none;
   position: fixed;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 70px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  z-index: 900;
-  padding: 0 20px;
+  height: 80px;
+  background: white;
+  border-top: 1px solid #f4f4f5;
+  padding: 0 20px 20px; /* Extra bottom padding for home indicator */
+  z-index: 1000;
   align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--card-border);
+  justify-content: space-around;
+}
+
+.nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px;
+  width: 70px;
+  border-radius: 12px;
+}
+
+.nav-button.active {
+  color: #18181b;
 }
 
 @media (max-width: 640px) {
-  .mobile-header {
+  .bottom-nav {
     display: flex;
   }
-}
-
-.menu-trigger {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--bg-tertiary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-main);
-  border: none;
-  cursor: pointer;
-}
-
-/* Native-like button interaction */
-@media (hover: none) {
-  button:hover {
-    transform: none;
-    filter: none;
+  
+  .mobile-header {
+    display: none !important; /* Hide old mobile header */
   }
 
-  .glass-card:hover {
-    transform: none;
-    box-shadow: var(--card-shadow);
+  .main-content {
+    padding-top: 20px !important;
+    padding-bottom: 100px !important;
   }
-}
-
-/* Prevent text selection on UI elements for app-like fee */
-.sidebar, button, .nav-item {
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
 }

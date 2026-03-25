@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { Menu, Camera } from 'lucide-react';
-import { motion } from 'framer-motion';
-import Sidebar from './components/Sidebar';
+import { Home, Utensils, Scale, Heart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import MacroTracker from './components/MacroTracker';
 import WeightTracker from './components/WeightTracker';
 import ActivityTracker from './components/ActivityTracker';
 import Goals from './components/Goals';
 import Login from './components/Login';
+import Profile from './components/Profile';
 import InstallPrompt from './components/InstallPrompt';
+import Onboarding from './components/Onboarding';
 import { auth } from './services/firebase';
 import { useTrackerStore } from './store/useTrackerStore';
 import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const { user, setUser, checkAndReset } = useTrackerStore();
+  const { user, setUser, checkAndReset, syncWithFirestore } = useTrackerStore();
+  const [isProfileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -33,6 +33,17 @@ function App() {
   }, [setUser]);
 
   useEffect(() => {
+    if (user.isLoggedIn && user.uid && user.uid !== 'demo-uid') {
+      const unsubscribeSync = syncWithFirestore();
+      return () => {
+        if (typeof unsubscribeSync === 'function') {
+          unsubscribeSync();
+        }
+      };
+    }
+  }, [user.isLoggedIn, user.uid, syncWithFirestore]);
+
+  useEffect(() => {
     checkAndReset();
     const interval = setInterval(checkAndReset, 60000);
     return () => clearInterval(interval);
@@ -46,7 +57,7 @@ function App() {
     const renderSecondaryContent = () => {
       switch (activeTab) {
         case 'dashboard':
-          return <Dashboard onAddMeal={() => setActiveTab('calorie')} />;
+          return <Dashboard onAddMeal={() => setActiveTab('calorie')} onOpenProfile={() => setProfileOpen(true)} />;
         case 'calorie':
           return <MacroTracker />;
         case 'weight':
@@ -56,55 +67,50 @@ function App() {
         case 'goals':
           return <Goals />;
         default:
-          return <Dashboard onAddMeal={() => setActiveTab('dashboard')} />;
+          return <Dashboard onAddMeal={() => setActiveTab('calorie')} onOpenProfile={() => setProfileOpen(true)} />;
       }
     };
 
     return (
-      <div className="app-container" style={{ display: 'flex', position: 'relative', overflow: 'hidden' }}>
-        {/* Edge trigger for swiping open */}
-        <motion.div 
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: '20px',
-            zIndex: 800,
-            background: 'transparent'
-          }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          onDragEnd={(_: any, info: { offset: { x: number } }) => {
-            if (info.offset.x > 30) setSidebarOpen(true);
-          }}
-        />
-
-        <header className="mobile-header">
-          <button className="menu-trigger" onClick={() => setSidebarOpen(true)}>
-            <Menu size={24} />
-          </button>
-          <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>
-            Macro<span style={{ color: 'var(--accent-protein)' }}>Lens</span>
-          </h2>
-          <button className="menu-trigger" onClick={() => setActiveTab('calorie')}>
-            <Camera size={22} />
-          </button>
-        </header>
-
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={(tab) => {
-            setActiveTab(tab);
-            setSidebarOpen(false);
-          }} 
-          isOpen={isSidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-        
-        <main className="main-content">
+      <div className="app-container" style={{ background: 'white', minHeight: '100vh', position: 'relative' }}>
+        <main className="main-content" style={{ width: '100%', margin: 0, padding: 0, position: 'relative' }}>
           {renderSecondaryContent()}
         </main>
+
+        <Profile isOpen={isProfileOpen} onClose={() => setProfileOpen(false)} />
+        <Onboarding />
+
+        {/* Bottom Navigation for Mobile */}
+        <nav className="bottom-nav">
+          <button 
+            className={`nav-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <Home size={24} strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} />
+            <span>Home</span>
+          </button>
+          <button 
+            className={`nav-button ${activeTab === 'calorie' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calorie')}
+          >
+            <Utensils size={24} strokeWidth={activeTab === 'calorie' ? 2.5 : 2} />
+            <span>Fasting</span>
+          </button>
+          <button 
+            className={`nav-button ${activeTab === 'weight' ? 'active' : ''}`}
+            onClick={() => setActiveTab('weight')}
+          >
+            <Scale size={24} strokeWidth={activeTab === 'weight' ? 2.5 : 2} />
+            <span>Weight</span>
+          </button>
+          <button 
+            className={`nav-button ${activeTab === 'steps' ? 'active' : ''}`}
+            onClick={() => setActiveTab('steps')}
+          >
+            <Heart size={24} strokeWidth={activeTab === 'steps' ? 2.5 : 2} />
+            <span>Wellness</span>
+          </button>
+        </nav>
       </div>
     );
   };

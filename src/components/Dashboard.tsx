@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Flame, Utensils, Zap, Plus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, User as UserIcon } from 'lucide-react';
 import { useTrackerStore } from '../store/useTrackerStore';
-import ProgressCircle from './ProgressCircle';
 import { motion } from 'framer-motion';
 
 const isSameDay = (d1: Date, d2: Date) => {
@@ -10,8 +9,8 @@ const isSameDay = (d1: Date, d2: Date) => {
            d1.getDate() === d2.getDate();
 };
 
-const Dashboard = ({ onAddMeal }: { onAddMeal: () => void }) => {
-    const { mealHistory } = useTrackerStore();
+const Dashboard = ({ onAddMeal, onOpenProfile }: { onAddMeal: () => void; onOpenProfile: () => void }) => {
+    const { mealHistory, profile, settings } = useTrackerStore();
 
     const [selectedDate, setSelectedDate] = useState(() => {
         const d = new Date();
@@ -19,24 +18,21 @@ const Dashboard = ({ onAddMeal }: { onAddMeal: () => void }) => {
         return d;
     });
 
-    const [baseDate, setBaseDate] = useState(() => {
+    const [baseDate] = useState(() => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
         return d;
     });
 
-    // Goals (Static for now, could be in store)
-    const goals = {
-        calories: 2500,
-        protein: 180,
-        carbs: 300,
-        fats: 60
+    const goals = { 
+        calories: profile.calorieGoal, 
+        protein: Math.round(profile.calorieGoal * 0.3 / 4), // Example macro split
+        carbs: Math.round(profile.calorieGoal * 0.4 / 4), 
+        fats: Math.round(profile.calorieGoal * 0.3 / 9) 
     };
 
-    // Filter meals for selectedDate
     const mealsForSelectedDate = mealHistory.filter(m => isSameDay(new Date(m.timestamp), selectedDate));
 
-    // Calculate dynamic stats
     const dailyStats = {
         calories: mealsForSelectedDate.reduce((sum, m) => sum + (m.type === 'food' ? m.calories : -(m.calories || 0)), 0),
         protein: mealsForSelectedDate.reduce((sum, m) => sum + (m.protein || 0), 0),
@@ -44,46 +40,15 @@ const Dashboard = ({ onAddMeal }: { onAddMeal: () => void }) => {
         fats: mealsForSelectedDate.reduce((sum, m) => sum + (m.fats || 0), 0),
     };
 
-    const caloriesLeft = Math.max(0, goals.calories - dailyStats.calories);
-    const calProgress = (dailyStats.calories / goals.calories) * 100;
-
     const macros = [
-        {
-            label: 'Protein',
-            left: Math.max(0, goals.protein - dailyStats.protein),
-            unit: 'g',
-            icon: <Zap size={14} color="#f43f5e" />,
-            color: "#f43f5e",
-            progress: (dailyStats.protein / goals.protein) * 100
-        },
-        {
-            label: 'Carbs',
-            left: Math.max(0, goals.carbs - dailyStats.carbs),
-            unit: 'g',
-            icon: <Flame size={14} color="#f59e0b" />,
-            color: "#f59e0b",
-            progress: (dailyStats.carbs / goals.carbs) * 100
-        },
-        {
-            label: 'Fat',
-            left: Math.max(0, goals.fats - dailyStats.fats),
-            unit: 'g',
-            icon: <Utensils size={14} color="#3b82f6" />,
-            color: "#3b82f6",
-            progress: (dailyStats.fats / goals.fats) * 100
-        },
+        { label: 'Carbs', left: Math.max(0, goals.carbs - dailyStats.carbs) },
+        { label: 'Protein', left: Math.max(0, goals.protein - dailyStats.protein) },
+        { label: 'Fat', left: Math.max(0, goals.fats - dailyStats.fats) },
     ];
 
-    const shiftBaseDate = (days: number) => {
-        const d = new Date(baseDate);
-        d.setDate(d.getDate() + days);
-        setBaseDate(d);
-    };
-
-    // Dates for the header scroller
     const dates = Array.from({ length: 7 }).map((_, i) => {
         const d = new Date(baseDate);
-        d.setDate(d.getDate() - (3 - i));
+        d.setDate(d.getDate() - (0 - i)); // Adjusted for current week
         return {
             dateObj: d,
             day: d.getDate(),
@@ -92,211 +57,227 @@ const Dashboard = ({ onAddMeal }: { onAddMeal: () => void }) => {
         };
     });
 
-    const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.value) {
-            // value is YYYY-MM-DD
-            const [year, month, day] = e.target.value.split('-').map(Number);
-            const localDate = new Date(year, month - 1, day);
-            setSelectedDate(localDate);
-            setBaseDate(localDate);
-        }
-    };
+    const currentMonth = selectedDate.toLocaleString('default', { month: 'long' });
+    const currentYear = selectedDate.getFullYear().toString().slice(-2);
+    const currentDayName = selectedDate.toLocaleString('default', { weekday: 'long' });
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="dashboard-root"
-            style={{ maxWidth: '800px', margin: '0 auto' }}
+            style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '100px' }}
         >
-            {/* Date Scroller */}
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-                <button 
-                    onClick={() => shiftBaseDate(-7)} 
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                    <ChevronLeft size={24} />
-                </button>
+            {/* New Header */}
+            <div style={{ padding: '30px 0 10px', textAlign: 'center', position: 'relative', marginBottom: '10px' }}>
+                <div style={{ position: 'absolute', left: '0', top: '55%', transform: 'translateY(-50%)' }}>
+                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '24px' }}>🐾</span>
+                   </div>
+                </div>
                 
-                <div style={{ display: 'flex', gap: '16px' }}>
-                    {dates.map((item, i) => (
+                <h2 style={{ fontSize: '22px', fontWeight: '800', margin: '0 0 4px', color: '#18181b', letterSpacing: '-0.02em' }}>
+                    {currentMonth} '{currentYear}
+                </h2>
+                <h3 style={{ fontSize: '36px', color: '#e4e4e7', margin: 0, fontWeight: '700', letterSpacing: '-0.03em', lineHeight: '1.1' }}>
+                    {currentDayName}
+                </h3>                <div 
+                    onClick={onOpenProfile}
+                    style={{ 
+                        position: 'absolute', 
+                        right: '0', 
+                        top: '55%', 
+                        transform: 'translateY(-50%)',
+                        cursor: 'pointer' 
+                    }}
+                >
+                   <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a1a1aa' }}>
+                      <UserIcon size={24} />
+                   </div>
+                </div>
+            </div>
+
+            {/* New Date Scroller */}
+            {/* ... (dates content) */}
+            <div style={{ 
+                display: 'flex', 
+                overflowX: 'auto', 
+                gap: '8px', 
+                padding: '10px 0 20px', 
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch'
+            }}>
+                {dates.map((item, i) => {
+                    const dayName = item.dateObj.toLocaleString('default', { weekday: 'short' }).toUpperCase();
+                    return (
                         <div 
                             key={i} 
                             onClick={() => setSelectedDate(item.dateObj)}
                             style={{
                                 textAlign: 'center',
-                                padding: '8px',
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '50%',
-                                background: item.isSelected ? 'var(--text-main)' : 'transparent',
-                                color: item.isSelected ? 'white' : (item.isToday ? 'var(--text-main)' : 'var(--text-light)'),
-                                fontWeight: item.isToday || item.isSelected ? '700' : '400',
-                                fontSize: '18px',
+                                padding: '12px 10px',
+                                minWidth: '60px',
+                                borderRadius: '24px',
+                                border: item.isSelected ? '1px solid #e4e4e7' : '1px solid transparent',
+                                background: item.isSelected ? 'white' : 'transparent',
                                 cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                flexShrink: 0,
                                 display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s ease'
+                                gap: '8px'
                             }}
                         >
-                            {item.day}
-                        </div>
-                    ))}
-                </div>
-
-                <button 
-                    onClick={() => shiftBaseDate(7)} 
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                    <ChevronRight size={24} />
-                </button>
-
-                <div style={{ position: 'relative', marginLeft: '8px' }}>
-                    <input 
-                        type="date"
-                        onChange={handleDateInput}
-                        style={{
-                            position: 'absolute',
-                            opacity: 0,
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            cursor: 'pointer',
-                            width: '100%',
-                            height: '100%'
-                        }}
-                    />
-                    <div style={{ padding: '8px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-main)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                        <Calendar size={20} />
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Calorie Card */}
-            <div className="glass-card" style={{ padding: '32px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h2 style={{ fontSize: '48px', fontWeight: '700', lineHeight: '1' }}>{caloriesLeft.toLocaleString()}</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '16px', marginTop: '8px' }}>Calories left</p>
-                </div>
-                <ProgressCircle
-                    progress={calProgress}
-                    size={140}
-                    strokeWidth={12}
-                    color="var(--accent-calories)"
-                    icon={<Flame size={28} color="var(--accent-calories)" />}
-                />
-            </div>
-
-            {/* Macro Cards Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '48px' }}>
-                {macros.map((macro, i) => (
-                    <div key={i} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div>
-                            <h3 style={{ fontSize: '24px', fontWeight: '700' }}>{macro.left}{macro.unit}</h3>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{macro.label} left</p>
-                        </div>
-                        <div style={{ alignSelf: 'center' }}>
-                            <ProgressCircle
-                                progress={macro.progress}
-                                size={70}
-                                strokeWidth={6}
-                                color={macro.color}
-                                icon={macro.icon}
-                            />
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Recently Logged Section */}
-            <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '20px' }}>Recently logged</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {mealsForSelectedDate.length === 0 ? (
-                    <div className="glass-card" style={{ padding: '40px', textAlign: 'center', borderStyle: 'dashed' }}>
-                        <p style={{ color: 'var(--text-muted)' }}>No logs for this date. Time to track!</p>
-                    </div>
-                ) : (
-                    mealsForSelectedDate.map((item, i) => (
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.1 }}
-                            key={item.id}
-                            className="glass-card"
-                            style={{ padding: '16px', display: 'flex', gap: '16px', alignItems: 'center' }}
-                        >
-                            {/* Image Placeholder or Actual Image */}
-                            <div style={{
-                                width: '80px',
-                                height: '80px',
-                                borderRadius: '16px',
-                                background: item.type === 'food' ? '#f1f5f9' : '#0f172a',
-                                overflow: 'hidden',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
+                            <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: '600' }}>{dayName}</span>
+                            <span style={{ 
+                                fontSize: '20px', 
+                                fontWeight: '700', 
+                                color: item.isSelected ? '#18181b' : '#a1a1aa' 
                             }}>
-                                {item.image ? (
-                                    <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    item.type === 'food' ? <Utensils color="#94a3b8" /> : <Zap color="white" />
-                                )}
-                            </div>
+                                {item.day}
+                            </span>
+                            {item.isSelected ? (
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#fbbf24' }} />
+                            ) : (
+                                <div style={{ width: '12px', height: '2px', background: '#d4d4d8', borderRadius: '2px' }} />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
 
-                            <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                        <h4 style={{ fontWeight: '700', fontSize: '18px', color: 'var(--text-main)', marginBottom: '4px' }}>{item.name}</h4>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                <Flame size={12} /> {item.calories} kcal
-                                            </span>
-                                            <span style={{ width: '3px', height: '3px', borderRadius: '50%', background: 'var(--text-muted)', opacity: 0.3 }}></span>
-                                            <span style={{ fontSize: '12px', color: 'var(--text-accent)', fontWeight: '600' }}>
-                                                {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexDirection: 'column' }}>
-                                        {item.type === 'food' && (
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <div style={{ padding: '4px 8px', borderRadius: '6px', background: '#fef2f2', color: '#ef4444', fontSize: '11px', fontWeight: '700' }}>P: {item.protein}g</div>
-                                                <div style={{ padding: '4px 8px', borderRadius: '6px', background: '#fffbeb', color: '#f59e0b', fontSize: '11px', fontWeight: '700' }}>C: {item.carbs}g</div>
-                                                <div style={{ padding: '4px 8px', borderRadius: '6px', background: '#eff6ff', color: '#3b82f6', fontSize: '11px', fontWeight: '700' }}>F: {item.fats}g</div>
-                                            </div>
-                                        )}
-                                    </div>
+            {/* Hero Section */}
+            <div style={{ textAlign: 'center', padding: '10px 0 40px' }}>
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                >
+                    <img 
+                        src="/beaver-hero.png" 
+                        alt="MacroLens Hero" 
+                        style={{ width: '220px', height: 'auto', marginBottom: '10px' }} 
+                    />
+                </motion.div>
+                
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '84px', fontWeight: '800', color: '#18181b', lineHeight: '0.9' }}>
+                        {dailyStats.calories}
+                    </span>
+                    <span style={{ fontSize: '56px', fontWeight: '800', color: '#f4f4f5', position: 'relative', top: '-2px' }}>
+                        / {goals.calories}
+                    </span>
+                </div>
+                <p style={{ fontSize: '12px', fontWeight: '800', color: '#18181b', letterSpacing: '0.1em', marginTop: '12px' }}>
+                    CALORIES EATEN
+                </p>
+            </div>
+
+            {/* Conditionally Render Macros Section */}
+            {settings.macrosView && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '40px' }}>
+                    {macros.map((macro, i) => {
+                        const goal = macro.label === 'Protein' ? goals.protein : (macro.label === 'Carbs' ? goals.carbs : goals.fats);
+                        const consumed = Math.round(goal - macro.left);
+                        return (
+                            <div key={i} style={{ textAlign: 'center' }}>
+                                <p style={{ fontSize: '12px', fontWeight: '700', color: '#a1a1aa', marginBottom: '12px', letterSpacing: '0.05em' }}>
+                                    {macro.label.toUpperCase()}
+                                </p>
+                                <div style={{ width: '100%', height: '4px', background: '#f4f4f5', borderRadius: '2px', marginBottom: '12px', overflow: 'hidden' }}>
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(100, (consumed / goal) * 100)}%` }}
+                                        style={{ height: '100%', background: '#d4d4d8' }} 
+                                    />
+                                </div>
+                                <div style={{ fontSize: '18px', fontWeight: '600', color: '#18181b' }}>
+                                    {consumed} <span style={{ color: '#d4d4d8', fontWeight: '500' }}>/ {goal} g</span>
                                 </div>
                             </div>
-                        </motion.div>
-                    ))
-                )}
+                        );
+                    })}
+                </div>
+            )}
+            {/* Logged Status Capsule */}
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '40px' }}>
+                <div style={{ 
+                    background: '#f4f4f5', 
+                    padding: '12px 24px', 
+                    borderRadius: '40px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
+                }}>
+                    <span style={{ fontSize: '18px' }}>🍎</span>
+                    <span style={{ fontWeight: '700', fontSize: '16px', color: '#18181b' }}>
+                        Logged: {mealsForSelectedDate.length}
+                    </span>
+                </div>
             </div>
 
-            {/* Floating Action Button */}
-            <button
-                onClick={onAddMeal}
-                style={{
-                    position: 'fixed',
-                    bottom: '32px',
-                    right: '32px',
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    background: '#0f172a',
-                    boxShadow: '0 8px 32px rgba(15, 23, 42, 0.4)',
-                    zIndex: 1000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer'
-                }}
-            >
-                <Plus size={32} />
-            </button>
+            {/* Floating Action Button & Decorative Icons */}
+            <div style={{ position: 'fixed', bottom: '110px', right: '30px', zIndex: 1000 }}>
+                {/* Floating Food Icons */}
+                <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    style={{ position: 'absolute', top: '-110px', right: '40px', fontSize: '32px', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.1))' }}
+                >
+                    🥗
+                </motion.div>
+                <motion.div
+                    animate={{ y: [0, -15, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                    style={{ position: 'absolute', top: '-60px', left: '-50px', fontSize: '32px', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.1))' }}
+                >
+                    🌭
+                </motion.div>
+                <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                    style={{ position: 'absolute', top: '10px', left: '-50px', fontSize: '32px', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.1))' }}
+                >
+                    🍟
+                </motion.div>
+
+                {/* Main FAB */}
+                <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={onAddMeal}
+                    style={{
+                        width: '80px',
+                        height: '80px',
+                        borderRadius: '50%',
+                        background: '#18181b',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <div style={{ position: 'relative', width: '32px', height: '32px' }}>
+                        <Plus size={32} strokeWidth={2.5} />
+                        {/* Scanner-like overlay lines */}
+                        <div style={{ position: 'absolute', top: '-4px', left: '-4px', width: '8px', height: '8px', borderTop: '2.5px solid white', borderLeft: '2.5px solid white' }} />
+                        <div style={{ position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', borderTop: '2.5px solid white', borderRight: '2.5px solid white' }} />
+                        <div style={{ position: 'absolute', bottom: '-4px', left: '-4px', width: '8px', height: '8px', borderBottom: '2.5px solid white', borderLeft: '2.5px solid white' }} />
+                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', width: '8px', height: '8px', borderBottom: '2.5px solid white', borderRight: '2.5px solid white' }} />
+                    </div>
+                </motion.button>
+            </div>
+
+            {/* Recently Logged Title - Hidden in the new minimalist mockup but kept for functionality if needed */}
+            {/* <h3 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '20px' }}>Recently logged</h3> */}
         </motion.div>
     );
 };
 
 export default Dashboard;
+;

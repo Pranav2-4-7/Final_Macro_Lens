@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { auth, db } from '../services/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface TrackerState {
     dailyStats: {
@@ -10,6 +10,8 @@ interface TrackerState {
         carbs: number;
         fats: number;
         steps: number;
+        waterIntake: number;
+        exerciseCalories: number;
         lastReset: string;
     };
     mealHistory: {
@@ -29,19 +31,42 @@ interface TrackerState {
         uid: string | null;
         email: string | null;
         isPro: boolean;
+        hasCompletedOnboarding: boolean;
+    };
+    settings: {
+        macrosView: boolean;
+        isMetric: boolean;
+    };
+    profile: {
+        weightGoal: number;
+        currentWeight: number;
+        height: number;
+        workoutFrequency: number; // days per week
+        weeklyGoal: number; // kg change per week
+        calorieGoal: number;
+        stepGoal: number;
+        dietType: string;
+        gender: 'male' | 'female' | 'other';
+        age: number;
     };
 
     // Actions
     addMeal: (meal: { name: string; calories: number; protein: number; carbs: number; fats: number; image?: string }) => void;
     addExercise: (exercise: { name: string; calories: number; duration: string }) => void;
     updateSteps: (steps: number) => void;
+    addWater: (amount: number) => void;
+    addActivity: (calories: number) => void;
     addWeight: (weight: number) => void;
+    clearWeightHistory: () => void;
     setUser: (user: { uid: string; email: string | null }) => void;
     bypassLogin: () => void;
     logout: () => void;
     checkAndReset: () => void;
-    syncWithFirestore: () => void;
+    syncWithFirestore: () => any;
     saveToFirestore: (data: any) => Promise<void>;
+    updateSettings: (settings: Partial<TrackerState['settings']>) => void;
+    updateProfile: (profile: Partial<TrackerState['profile']>) => void;
+    completeOnboarding: (data: TrackerState['profile']) => void;
 }
 
 const DEFAULT_STATS = {
@@ -50,6 +75,8 @@ const DEFAULT_STATS = {
     carbs: 0,
     fats: 0,
     steps: 0,
+    waterIntake: 0,
+    exerciseCalories: 0,
     lastReset: new Date().toISOString(),
 };
 
@@ -64,28 +91,78 @@ export const useTrackerStore = create<TrackerState>()(
                 uid: null,
                 email: null,
                 isPro: false,
+                hasCompletedOnboarding: false,
+            },
+            settings: {
+                macrosView: true,
+                isMetric: true,
+            },
+            profile: {
+                weightGoal: 80,
+                currentWeight: 80,
+                height: 175,
+                workoutFrequency: 3,
+                weeklyGoal: 0,
+                calorieGoal: 2168,
+                stepGoal: 8000,
+                dietType: 'Non-Veg',
+                gender: 'male',
+                age: 25,
             },
 
             setUser: (userData) => {
                 set({
-                    user: { isLoggedIn: true, uid: userData.uid, email: userData.email, isPro: true }
+                    user: { ...get().user, isLoggedIn: true, uid: userData.uid, email: userData.email, isPro: true }
                 });
                 get().syncWithFirestore();
             },
 
             bypassLogin: () => {
                 set({
-                    user: { isLoggedIn: true, uid: 'demo-uid', email: 'demo@macrolens.ai', isPro: true }
+                    user: { 
+                        isLoggedIn: true, 
+                        uid: 'demo-uid', 
+                        email: 'demo@macrolens.ai', 
+                        isPro: true,
+                        hasCompletedOnboarding: true 
+                    }
                 });
             },
 
             logout: () => {
                 auth.signOut();
                 set({
-                    user: { isLoggedIn: false, uid: null, email: null, isPro: false },
+                    user: { isLoggedIn: false, uid: null, email: null, isPro: false, hasCompletedOnboarding: false },
                     dailyStats: { ...DEFAULT_STATS },
                     weightHistory: []
                 });
+            },
+
+            completeOnboarding: (data) => {
+                // Mifflin-St Jeor Calculation
+                const bmr = (10 * data.currentWeight) + (6.25 * data.height) - (5 * data.age) + (data.gender === 'male' ? 5 : -161);
+                
+                // Refined Activity Multiplier based on standard TDEE tables
+                let activityMultiplier = 1.2; // Sedentary
+                if (data.workoutFrequency >= 1 && data.workoutFrequency <= 2) activityMultiplier = 1.375;
+                else if (data.workoutFrequency >= 3 && data.workoutFrequency <= 4) activityMultiplier = 1.55;
+                else if (data.workoutFrequency >= 5 && data.workoutFrequency <= 6) activityMultiplier = 1.725;
+                else if (data.workoutFrequency >= 7) activityMultiplier = 1.9;
+                
+                const maintenanceCalories = bmr * activityMultiplier;
+                
+                // Weekly Goal Adjustment (1kg = 7700 kcal per week = 1100 per day)
+                const dailyAdjustment = (data.weeklyGoal * 7700) / 7;
+                const calorieGoal = Math.round(maintenanceCalories + dailyAdjustment);
+                
+                // Step Goal: Base 5000 + 1000 per workout day
+                const stepGoal = 5000 + (data.workoutFrequency * 1000);
+
+                set({
+                    profile: { ...data, calorieGoal, stepGoal },
+                    user: { ...get().user, hasCompletedOnboarding: true }
+                });
+                get().saveToFirestore({ profile: { ...data, calorieGoal, stepGoal }, user: { hasCompletedOnboarding: true } });
             },
 
             addMeal: (meal) => {
@@ -145,11 +222,35 @@ export const useTrackerStore = create<TrackerState>()(
                 get().saveToFirestore(newState);
             },
 
+            addWater: (amount) => {
+                get().checkAndReset();
+                const newState = {
+                    dailyStats: { ...get().dailyStats, waterIntake: get().dailyStats.waterIntake + amount }
+                };
+                set(newState);
+                get().saveToFirestore(newState);
+            },
+
+            addActivity: (calories) => {
+                get().checkAndReset();
+                const newState = {
+                    dailyStats: { ...get().dailyStats, exerciseCalories: (get().dailyStats.exerciseCalories || 0) + calories }
+                };
+                set(newState);
+                get().saveToFirestore(newState);
+            },
+
             addWeight: (weight) => {
                 const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 const newState = {
                     weightHistory: [...get().weightHistory, { date: today, weight }]
                 };
+                set(newState);
+                get().saveToFirestore(newState);
+            },
+
+            clearWeightHistory: () => {
+                const newState = { weightHistory: [] };
                 set(newState);
                 get().saveToFirestore(newState);
             },
@@ -190,16 +291,44 @@ export const useTrackerStore = create<TrackerState>()(
                 const { uid } = get().user;
                 if (!uid || uid === 'demo-uid') return;
 
-                getDoc(doc(db, 'users', uid)).then((docSnap) => {
+                const userDocRef = doc(db, 'users', uid);
+                
+                // Real-time listener
+                const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        set(docSnap.data());
-                    } else {
-                        get().saveToFirestore({
-                            dailyStats: get().dailyStats,
-                            weightHistory: get().weightHistory
+                        const cloudData = docSnap.data();
+                        
+                        // Merge logic: only update if cloud data is different and we aren't mid-save
+                        // For simplicity in a calorie tracker, we trust the cloud as the source of truth
+                        set({
+                            dailyStats: cloudData.dailyStats || get().dailyStats,
+                            mealHistory: cloudData.mealHistory || get().mealHistory,
+                            weightHistory: cloudData.weightHistory || get().weightHistory,
+                            settings: cloudData.settings || get().settings,
+                            profile: cloudData.profile || get().profile,
+                            user: { ...get().user, hasCompletedOnboarding: cloudData.user?.hasCompletedOnboarding ?? get().user.hasCompletedOnboarding }
                         });
+                        console.log("🔄 Real-time sync updated from Firestore");
                     }
                 });
+
+                return unsubscribe;
+            },
+
+            updateSettings: (newSettings) => {
+                const newState = {
+                    settings: { ...get().settings, ...newSettings }
+                };
+                set(newState);
+                get().saveToFirestore(newState);
+            },
+
+            updateProfile: (newProfile) => {
+                const newState = {
+                    profile: { ...get().profile, ...newProfile }
+                };
+                set(newState);
+                get().saveToFirestore(newState);
             }
         }),
         {
