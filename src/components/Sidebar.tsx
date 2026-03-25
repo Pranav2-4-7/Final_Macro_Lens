@@ -123,7 +123,7 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => 
                             onClick={installApp}
                             style={{ 
                                 marginTop: '12px',
-                                background: 'var(--accent-calories)', 
+                                background: '#6366f1', 
                                 color: 'white', 
                                 border: 'none', 
                                 borderRadius: '16px',
