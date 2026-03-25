@@ -117,7 +117,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => 
                         <span className="nav-label">Logout</span>
                     </button>
 
-                    {isInstallable && !isInstalled && (
+                    {/* Force-show for testing: removing isInstallable check */}
+                    {true && (
                         <button
                             onClick={installApp}
                             style={{ 
