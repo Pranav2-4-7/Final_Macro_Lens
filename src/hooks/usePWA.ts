@@ -15,7 +15,7 @@ export const usePWA = () => {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
+    const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later.
@@ -31,7 +31,7 @@ export const usePWA = () => {
       console.log('PWA was installed');
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // Check if already installed
@@ -40,7 +40,7 @@ export const usePWA = () => {
     }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt as any);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);

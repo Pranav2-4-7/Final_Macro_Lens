@@ -118,7 +118,7 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => 
                     </button>
 
                     {/* Force-show for testing: removing isInstallable check */}
-                    {true && (
+                    (
                         <button
                             onClick={installApp}
                             style={{ 
@@ -135,7 +135,7 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, onClose }: SidebarProps) => 
                             <Download size={20} />
                             <span className="nav-label">Install App</span>
                         </button>
-                    )}
+                    )
                 </div>
             </motion.aside>
         </>

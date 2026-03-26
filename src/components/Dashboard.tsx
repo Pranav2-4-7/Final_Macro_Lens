@@ -280,4 +280,3 @@ const Dashboard = ({ onAddMeal, onOpenProfile }: { onAddMeal: () => void; onOpen
 };
 
 export default Dashboard;
-;

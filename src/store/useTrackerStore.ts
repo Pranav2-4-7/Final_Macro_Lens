@@ -62,8 +62,8 @@ interface TrackerState {
     bypassLogin: () => void;
     logout: () => void;
     checkAndReset: () => void;
-    syncWithFirestore: () => any;
-    saveToFirestore: (data: any) => Promise<void>;
+    syncWithFirestore: () => void | (() => void);
+    saveToFirestore: (data: Partial<TrackerState> | any) => Promise<void>;
     updateSettings: (settings: Partial<TrackerState['settings']>) => void;
     updateProfile: (profile: Partial<TrackerState['profile']>) => void;
     completeOnboarding: (data: TrackerState['profile']) => void;
@@ -279,9 +279,10 @@ export const useTrackerStore = create<TrackerState>()(
                 try {
                     await setDoc(doc(db, 'users', uid), data, { merge: true });
                     console.log("☁️ Successfully synced to Firestore for user:", uid);
-                } catch (error: any) {
-                    console.error("❌ Error saving to Firestore:", error.message, error.code);
-                    if (error.code === 'permission-denied') {
+                } catch (error: unknown) {
+                    const err = error as { message: string; code: string };
+                    console.error("❌ Error saving to Firestore:", err.message, err.code);
+                    if (err.code === 'permission-denied') {
                         console.error("👉 Check your Firestore Security Rules!");
                     }
                 }
